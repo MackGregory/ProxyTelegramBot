@@ -12,7 +12,7 @@ libraryDependencies ++= Seq(
   "org.typelevel" %% "cats-effect" % "2.0.0",
   "org.scalacheck" %% "scalacheck" % "1.14.0",
   "com.softwaremill.sttp" %% "core" % "1.7.2",
-  "com.softwaremill.sttp" %% "async-http-client-backend-monix" % "1.7.2",
+  "com.softwaremill.sttp" %% "async-http-client-backend-cats" % "1.7.2",
   "org.slf4j" % "slf4j-api" % "1.7.5",
   "org.slf4j" % "slf4j-simple" % "1.7.5",
   "org.tpolecat" %% "doobie-core" % doobieVersion,

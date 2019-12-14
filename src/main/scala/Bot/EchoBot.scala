@@ -1,16 +1,15 @@
 package Bot
 
+import cats.effect.{Async, ContextShift, Timer}
+import cats.syntax.functor._
 import com.bot4s.telegram.api.declarative.Commands
 import com.bot4s.telegram.cats.Polling
-import com.bot4s.telegram.methods._
-import com.bot4s.telegram.models._
-import monix.eval.Task
 
 import scala.util.Try
 
-class EchoBot(token: String) extends ExampleBot(token)
-  with Polling[Task]
-  with Commands[Task]
+class EchoBot[F[_]: Async: Timer : ContextShift](token: String) extends ExampleBot[F](token)
+  with Polling[F]
+  with Commands[F]
 {
   // Extractor
   object Int {
