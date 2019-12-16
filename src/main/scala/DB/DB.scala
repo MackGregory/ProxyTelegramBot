@@ -11,44 +11,41 @@ import fs2.Stream
 object DB extends IOApp {
 
   // Our data model
-  final case class Proxy(id: Int, localPort: String, targetHost: String, targetPort: String)
+  final case class Proxy(localPort: Int, targetHost: String, targetPort: Int)
   object Proxy {
     implicit val show: Show[Proxy] = Show.fromToString
   }
-  final case class ProxyStats(id: Int, sent: Int, received: Int)
+  final case class ProxyStats(port: Int, sent: Int, received: Int)
   object ProxyStats {
     implicit val show: Show[ProxyStats] = Show.fromToString
   }
 
   val proxies = List(
-    Proxy(1, "5000", "https://www.google.com/", "5100"),
-    Proxy(2, "5001", "192.168.0.40",            "5200")
+    Proxy(7766, "www.google.com", 80),
+    Proxy(5001, "192.168.0.40",   5200)
   )
 
   val stats = List(
-    ProxyStats(1, 0, 0),
-    ProxyStats(2, 0, 0)
+    ProxyStats(7766, 0, 0),
+    ProxyStats(5001, 0, 0)
   )
 
   // Our example database action
-  def exampleDBAction: ConnectionIO[String] =
+  def initDBAction: ConnectionIO[String] =
     for {
       // Create and populate
       _  <- DAO.create
       np <- DAO.insertProxies(proxies)
-      ns <- DAO.insertProxyStats(stats)
+      _  <- DAO.insertProxyStats(stats)
       _  <- putStrLn(show"Inserted $np proxies.")
 
       // Select and stream the coffees to stdout
       _ <- DAO.allProxies.evalMap(c => putStrLn(show"$c")).compile.drain
 
       //delete
-      _ <- DAO.delete(1)
+      _ <- DAO.delete(5001)
 
       _ <- DAO.allProxies.evalMap(c => putStrLn(show"$c")).compile.drain
-
-      //stats id=1
-      _ <- DAO.stats(2).evalMap(stat => putStrLn(show"$stat")).compile.drain
     } yield "All done!"
 
   // Entry point for SafeApp
@@ -57,7 +54,7 @@ object DB extends IOApp {
       "org.h2.Driver", "jdbc:h2:mem:test;DB_CLOSE_DELAY=-1", "sa", ""
     )
     for {
-      a <- exampleDBAction.transact(db).attempt
+      a <- initDBAction.transact(db).attempt
       _ <- IO(println(a))
     } yield ExitCode.Success
   }
@@ -76,49 +73,56 @@ object DB extends IOApp {
     def create: ConnectionIO[Unit] =
       Queries.create.run.void
 
-    def delete(id: Int): ConnectionIO[Unit] =
-      Queries.delete(id).run.void
+    def delete(port: Int): ConnectionIO[Unit] =
+      Queries.delete(port).run.void
 
-    def stats(id: Int): Stream[ConnectionIO, ProxyStats] =
-      Queries.stats(id).stream
+    def get(port: Int): Stream[ConnectionIO, Proxy] =
+      Queries.get(port).stream
+
+    def stats(port: Int): Stream[ConnectionIO, ProxyStats] =
+      Queries.stats(port).stream
   }
 
   /** Queries module contains "raw" Query/Update values. */
   object Queries {
     val insertProxy: Update[Proxy] =
-      Update[Proxy]("INSERT INTO proxy VALUES (?, ?, ?, ?)", None)
+      Update[Proxy]("INSERT INTO proxy VALUES (?, ?, ?)", None)
 
     def insertProxyStats =
       Update[ProxyStats]("INSERT INTO proxy_stats VALUES (?, ?, ?);", None)
 
     def allProxies: Query0[Proxy] =
-      sql"SELECT proxy_id, local_port, target_host, target_port FROM proxy".query[Proxy]
+      sql"SELECT local_port, target_host, target_port FROM proxy".query[Proxy]
 
     def create: Update0 =
       sql"""
         CREATE TABLE proxy (
-          proxy_id    INTEGER NOT NULL PRIMARY KEY,
-          local_port  INTEGER NOT NULL,
+          local_port  INTEGER NOT NULL PRIMARY KEY,
           target_host VARCHAR NOT NULL,
           target_port INTEGER NOT NULL
         );
         CREATE TABLE proxy_stats (
-          proxy_id    INTEGER NOT NULL UNIQUE,
+          port        INTEGER NOT NULL,
           sent        INTEGER NOT NULL,
           received    INTEGER NOT NULL
         );
         ALTER TABLE proxy_stats
-        ADD CONSTRAINT proxy_id_fk FOREIGN KEY (proxy_id) REFERENCES proxy(proxy_id) ON DELETE CASCADE;
+        ADD CONSTRAINT port_fk FOREIGN KEY (port) REFERENCES proxy(local_port) ON DELETE CASCADE;
       """.update
 
-    def delete(id: Int): Update0 =
+    def delete(port: Int): Update0 =
       sql"""
-        DELETE FROM proxy WHERE proxy_id = $id;
+        DELETE FROM proxy WHERE local_port = $port;
         """.update
 
-    def stats(id: Int): Query0[ProxyStats] =
+    def get(port: Int): Query0[Proxy] =
       sql"""
-        SELECT proxy_id, sent, received FROM proxy_stats WHERE proxy_id = $id;
+        SELECT local_port, target_host, target_port FROM proxy WHERE local_port = $port;
+        """.query[Proxy]
+
+    def stats(port: Int): Query0[ProxyStats] =
+      sql"""
+        SELECT port, sent, received FROM proxy_stats WHERE port = $port;
         """.query[ProxyStats]
   }
 
