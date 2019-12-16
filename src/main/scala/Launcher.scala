@@ -1,4 +1,6 @@
+import Bot.TelegramProxyBot
 import DB.DB._
+import ProxyServer.Proxy
 import cats.effect.{ExitCode, IO, IOApp}
 import doobie.Transactor
 import doobie.implicits._
@@ -12,12 +14,12 @@ object Launcher extends IOApp {
     for {
       a <- initDBAction.transact(db).attempt
       _ <- IO(println(a))
-      p <- DAO.allProxies.compile.toList.transact(db).attempt
+      proxies <- DAO.allProxies.compile.toList.transact(db)
+      test = proxies.map{
+        proxy =>
+          Proxy.run(List(proxy.localPort.toString, proxy.targetHost, proxy.targetPort.toString)).unsafeRunAsync(_ => ())
+      }
+      bot = new TelegramProxyBot[IO]("887543781:AAGyGT0HW-Xr0wWNAKwhdMuPNw90tud1bNE")(db).startPolling.map(_ => ExitCode.Success)
     } yield ExitCode.Success
-
-    //TODO check DB for existing ports to run servers on
-
-    //Telegram-Bot
-    //new TelegramProxyBot[IO]("887543781:AAGyGT0HW-Xr0wWNAKwhdMuPNw90tud1bNE")(db).startPolling.map(_ => ExitCode.Success)
   }
 }

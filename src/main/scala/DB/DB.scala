@@ -21,32 +21,21 @@ object DB extends IOApp {
   }
 
   val proxies = List(
-    Proxy(7766, "www.google.com", 80),
-    Proxy(5001, "192.168.0.40",   5200)
+    Proxy(7766, "www.google.com", 80)
   )
 
-  val stats = List(
-    ProxyStats(7766, 0, 0),
-    ProxyStats(5001, 0, 0)
-  )
 
   // Our example database action
   def initDBAction: ConnectionIO[String] =
     for {
       // Create and populate
       _  <- DAO.create
-      np <- DAO.insertProxies(proxies)
-      _  <- DAO.insertProxyStats(stats)
-      _  <- putStrLn(show"Inserted $np proxies.")
+      //np <- DAO.insertProxies(proxies)
+      //_  <- putStrLn(show"Inserted $np proxies.")
 
       // Select and stream the coffees to stdout
-      _ <- DAO.allProxies.evalMap(c => putStrLn(show"$c")).compile.drain
-
-      //delete
-      _ <- DAO.delete(5001)
-
-      _ <- DAO.allProxies.evalMap(c => putStrLn(show"$c")).compile.drain
-    } yield "All done!"
+      //_ <- DAO.allProxies.evalMap(c => putStrLn(show"$c")).compile.drain
+    } yield "Init DB done."
 
   // Entry point for SafeApp
   def run(args: List[String]): IO[ExitCode] = {
