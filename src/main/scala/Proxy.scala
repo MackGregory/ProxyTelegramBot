@@ -11,7 +11,7 @@ object Proxy extends IOApp {
     Stream.resource(Blocker[IO].flatMap(blocker => SocketGroup[IO](blocker)))
 
   val proxy: SocketGroup => Stream[IO, Unit] = socketGroup => {
-    val client = socketGroup.client[IO](new InetSocketAddress(InetAddress.getByName("localhost"), 8080))
+    val client = socketGroup.client[IO](new InetSocketAddress(InetAddress.getByName("www.google.com"), 80))
 
     val server = socketGroup
       .serverWithLocalAddress[IO](new InetSocketAddress(7766))
