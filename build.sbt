@@ -17,7 +17,8 @@ libraryDependencies ++= Seq(
   "io.monix" %% "monix" % "3.1.0",
   "io.monix" %% "monix-nio" % "0.0.6",
   "co.fs2" %% "fs2-core" % "2.1.0",
-  "co.fs2" %% "fs2-io" % "2.1.0"
+  "co.fs2" %% "fs2-io" % "2.1.0",
+  "io.monix" %% "monix" % "3.1.0"
 )
 
 scalacOptions ++= List(

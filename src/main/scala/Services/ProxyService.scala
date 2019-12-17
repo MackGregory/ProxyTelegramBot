@@ -1,22 +1,26 @@
-package ProxyServer
+package Services
 
 import java.net.{InetAddress, InetSocketAddress}
 
 import cats.Monad
-import cats.effect.{Blocker, Concurrent, ContextShift, Sync}
+import cats.effect.concurrent.Deferred
+import cats.effect.{Blocker, Concurrent, ContextShift}
 import cats.implicits._
 import fs2.Stream
-import fs2.io.tcp.{Socket, SocketGroup}
+import fs2.io.tcp.SocketGroup
+
+import scala.collection.mutable
 
 trait ProxyService[F[_]] {
-  def runProxy(port: Int, targetHost: String, targetPort: Int): F[Unit]
+  def startProxy(port: Int, targetHost: String, targetPort: Int): F[Unit]
+
+  def stopProxy(port: Int): F[Unit]
 }
 
-class ProxyServiceImpl[F[_] : Sync : ContextShift : Concurrent]()(implicit F: Monad[F]) extends ProxyService[F] {
+class ProxyServiceImpl[F[_] : ContextShift : Concurrent]()(implicit F: Monad[F]) extends ProxyService[F] {
+  var socks: mutable.Map[Int, Deferred[F, Unit]] = mutable.Map.empty
 
-  val socks: scala.collection.mutable.Map[Int, Socket[F]] = scala.collection.mutable.Map()
-
-  override def runProxy(port: Int, targetHost: String, targetPort: Int): F[Unit] = {
+  override def startProxy(port: Int, targetHost: String, targetPort: Int): F[Unit] = {
     val mkSocketGroup: Stream[F, SocketGroup] =
       Stream.resource(Blocker[F].flatMap(blocker => SocketGroup[F](blocker)))
 
@@ -30,7 +34,6 @@ class ProxyServiceImpl[F[_] : Sync : ContextShift : Concurrent]()(implicit F: Mo
             Stream.eval_(F.pure(println(s"Started proxy server on $local")))
           case Right(s) =>
             Stream.resource(s).zip(Stream.resource(client)).map { case (serverSocket, clientSocket) =>
-              socks += (port -> serverSocket)
               serverSocket
                 .reads(1024)
                 .through(clientSocket.writes())
@@ -41,9 +44,18 @@ class ProxyServiceImpl[F[_] : Sync : ContextShift : Concurrent]()(implicit F: Mo
         }
         .parJoinUnbounded
 
-      server
+      Stream.eval(Deferred[F, Unit]).flatMap { switch =>
+        socks += port -> switch
+        server.interruptWhen(switch.get.attempt)
+      }
     }
 
     mkSocketGroup.flatMap(proxy).compile.drain
   }
+
+  override def stopProxy(port: Int): F[Unit] =
+    socks.get(port) match {
+      case Some(switch) => switch.complete(())
+      case None         => F.unit
+    }
 }
