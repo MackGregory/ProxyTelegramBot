@@ -1,33 +1,33 @@
 package DB
 
-import DB.DAO
-import cats.Monad
-import cats.effect.Bracket
-import cats.implicits._
 import doobie.implicits._
+import DB._
+import cats.Monad
+import cats.effect.{Bracket, IO}
+import cats.implicits._
 import doobie.util.transactor.Transactor
 
 trait DBService[F[_]] {
-  def getProxies: F[List[DB.Proxy]]
-  def get(port: Int): F[DB.Proxy]
-  def insertProxies(ps: List[DB.Proxy]): F[Unit]
-  def create: F[Unit]
-  def delete(port: Int): F[Unit]
+  def getProxies: IO[List[Proxy]]
+  def get(port: Int): IO[Proxy]
+  def insertProxies(ps: List[Proxy]): IO[Unit]
+  def create: IO[Unit]
+  def delete(port: Int): IO[Unit]
 }
 
-class DBServiceImpl[F[_]](db: Transactor.Aux[F, Unit])(implicit F: Monad[F], b: Bracket[F, Throwable]) extends DBService[F] {
-  override def getProxies: F[List[DB.Proxy]] =
+class DBServiceImpl[F[_]](db: Transactor.Aux[IO, Unit])(implicit F: Monad[F]) extends DBService[F] {
+  override def getProxies: IO[List[Proxy]] =
     DAO.allProxies.transact(db).compile.toList
 
-  override def get(port: Int): F[DB.Proxy] =
-    DAO.get(port).transact(db).compile.toList.map((x: List[DB.Proxy]) => x.head)
+  override def get(port: Int): IO[Proxy] =
+    DAO.get(port).transact(db).compile.toList.map(_.head)
 
-  override def insertProxies(ps: List[DB.Proxy]): F[Unit] =
+  override def insertProxies(ps: List[Proxy]): IO[Unit] =
     DAO.insertProxies(ps).transact(db).void
 
-  override def create: F[Unit] =
+  override def create: IO[Unit] =
     DAO.create.transact(db).void
 
-  override def delete(port: Int): F[Unit] =
+  override def delete(port: Int): IO[Unit] =
     DAO.delete(port).transact(db).void
 }
