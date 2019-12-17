@@ -55,7 +55,9 @@ class ProxyServiceImpl[F[_] : ContextShift : Concurrent]()(implicit F: Monad[F])
 
   override def stopProxy(port: Int): F[Unit] =
     socks.get(port) match {
-      case Some(switch) => switch.complete(())
-      case None         => F.unit
+      case Some(switch) =>
+        socks -= port
+        switch.complete(())
+      case None => F.unit
     }
 }

@@ -18,7 +18,7 @@ trait DBService[F[_]] {
   def delete(port: Int): F[Unit]
 }
 
-class DBServiceImpl[F[_]: Task : Concurrent : Sync : Async](db: Transactor.Aux[F, Unit])(implicit F: Monad[F]) extends DBService[F] {
+class DBServiceImpl[F[_]: Concurrent](db: Transactor.Aux[F, Unit])(implicit F: Monad[F]) extends DBService[F] {
   override def getProxies: F[List[Proxy]] =
     Queries.allProxies.stream.transact(db).compile.toList
 

@@ -12,12 +12,14 @@ import monix.eval.Task
 
 import scala.util.{Failure, Success, Try}
 
-trait BotService[F[_]]
+trait BotService[F[_]] {
+  def run(): F[Unit]
+}
 
-final class BotServiceImpl[F[_] : Sync : Async : ContextShift : Concurrent : Task]
+final class BotServiceImpl[F[_] : Concurrent : ContextShift]
 (token: String)
 (proxyService: ProxyServiceImpl[F], dbService: DBServiceImpl[F])
-  extends BotBase[Task](token)
+  extends BotBase[F](token)
     with Polling[F]
     with Commands[F]
     with RegexCommands[F]
@@ -42,8 +44,15 @@ final class BotServiceImpl[F[_] : Sync : Async : ContextShift : Concurrent : Tas
     def unapply(s: String): Option[Int] = Try(s.toInt).toOption
   }
 
-  onCommand("/hello") {implicit msg => {
-    reply("HELLO").void
+  onCommand("/test") {implicit msg => {
+    reply("Test").void
+  }}
+
+  onCommand("/proxies") {implicit msg => {
+    for {
+      p <- dbService.getProxies
+      _ <- reply(p.toString).void
+    } yield ()
   }}
 
   onRegex("""/openport ([0-9]+) (.+?):([0-9]+)""".r) { implicit msg => {
@@ -51,8 +60,8 @@ final class BotServiceImpl[F[_] : Sync : Async : ContextShift : Concurrent : Tas
       if (proxyService.socks.contains(localPort))
         reply(s"Server on port $localPort is already running.").void
       else {
-        reply(s"Started on port $localPort - target $targetHost:$targetPort").void
         openPort(localPort, targetHost, targetPort)
+        reply(s"Started on port $localPort - target $targetHost:$targetPort").void
       }
     case _ =>
       reply("Wrong command format:\nUse /openport <local_port> <target_host>:<target_port>.").void
@@ -60,8 +69,10 @@ final class BotServiceImpl[F[_] : Sync : Async : ContextShift : Concurrent : Tas
 
   onRegex("""/close ([0-9]+)""".r) { implicit msg => {
     case Seq(Int(port)) =>
-      reply(s"Stopped server on port $port").void
-      closePort(port)
+      for {
+        _ <- closePort(port)
+        _ <- reply(s"Stopped server on port $port").void
+      } yield ()
     case _ =>
       reply("Wrong number of arguments:\nUse /close <port>").void
   } }

@@ -33,19 +33,7 @@ object Launcher extends TaskApp {
       proxies <- dbService.getProxies
       _ = runProxies(proxyService, proxies)
       _ <- Task.sleep(Duration(3, SECONDS))
-      _ = println("123")
-      _ <- Task.sleep(Duration(3, SECONDS))
-      _ <- Task.never[Unit]
       _ <- botService.run()
     } yield ExitCode.Success
-
-//    val dbService = new DBServiceImpl[IO](db)
-//    dbService.create.void.unsafeRunSync()
-//    dbService.insertProxies(List(DB.Proxy(7766, "www.google.com", 80))).void.unsafeRunSync()
-//    println(dbService.getProxies.unsafeRunSync())
-//    val proxyService = new ProxyServiceImpl[IO]
-//    dbService.getProxies.unsafeRunSync().foreach(p => proxyService.runProxy(p.localPort, p.targetHost, p.targetPort).void.unsafeRunAsyncAndForget())
-//    new TelegramProxyBot[IO]("887543781:AAGyGT0HW-Xr0wWNAKwhdMuPNw90tud1bNE")(proxyService, dbService).startPolling().map(_=>ExitCode.Success)
-//
   }
 }
