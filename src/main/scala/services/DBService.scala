@@ -1,14 +1,12 @@
-package Services
+package services
 
-import DB.DB._
-import DB.Proxy
+import db._
 import cats.Monad
-import cats.effect.{Async, Bracket, Concurrent, IO, Sync}
-import cats.implicits._
-import cats.effect.implicits._
+import cats.effect.{Concurrent, ContextShift}
 import doobie.util.transactor.Transactor
 import doobie.implicits._
-import monix.eval.Task
+import cats.implicits._
+import doobie.util.transactor.Transactor.Aux
 
 trait DBService[F[_]] {
   def getProxies: F[List[Proxy]]
@@ -18,7 +16,14 @@ trait DBService[F[_]] {
   def delete(port: Int): F[Unit]
 }
 
-class DBServiceImpl[F[_]: Concurrent](db: Transactor.Aux[F, Unit])(implicit F: Monad[F]) extends DBService[F] {
+final class DBServiceImpl[F[_]: Concurrent: ContextShift](implicit F: Monad[F]) extends DBService[F] {
+  val db: Aux[F, Unit] = Transactor.fromDriverManager[F](
+    System.getProperties.getProperty("db.driver"),
+    System.getProperties.getProperty("db.url"),
+    System.getProperties.getProperty("db.user"),
+    System.getProperties.getProperty("db.pass")
+  )
+
   override def getProxies: F[List[Proxy]] =
     Queries.allProxies.stream.transact(db).compile.toList
 

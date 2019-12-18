@@ -1,9 +1,11 @@
-package Services
+package services
 
 import java.net.{InetAddress, InetSocketAddress}
 
+
 import cats.Monad
 import cats.effect.concurrent.Deferred
+import cats.effect.syntax.all._
 import cats.effect.{Blocker, Concurrent, ContextShift}
 import cats.implicits._
 import fs2.Stream
@@ -13,12 +15,11 @@ import scala.collection.mutable
 
 trait ProxyService[F[_]] {
   def startProxy(port: Int, targetHost: String, targetPort: Int): F[Unit]
-
   def stopProxy(port: Int): F[Unit]
 }
 
-class ProxyServiceImpl[F[_] : ContextShift : Concurrent]()(implicit F: Monad[F]) extends ProxyService[F] {
-  var socks: mutable.Map[Int, Deferred[F, Unit]] = mutable.Map.empty
+final class ProxyServiceImpl[F[_] : ContextShift : Concurrent]()(implicit F: Monad[F]) extends ProxyService[F] {
+  @volatile var socks: mutable.Map[Int, Deferred[F, Unit]] = mutable.Map.empty
 
   override def startProxy(port: Int, targetHost: String, targetPort: Int): F[Unit] = {
     val mkSocketGroup: Stream[F, SocketGroup] =
@@ -50,7 +51,12 @@ class ProxyServiceImpl[F[_] : ContextShift : Concurrent]()(implicit F: Monad[F])
       }
     }
 
-    mkSocketGroup.flatMap(proxy).compile.drain
+    mkSocketGroup
+      .flatMap(proxy)
+      .compile
+      .drain
+      .start
+      .void
   }
 
   override def stopProxy(port: Int): F[Unit] =
@@ -58,6 +64,7 @@ class ProxyServiceImpl[F[_] : ContextShift : Concurrent]()(implicit F: Monad[F])
       case Some(switch) =>
         socks -= port
         switch.complete(())
-      case None => F.unit
+      case None =>
+        F.unit
     }
 }
