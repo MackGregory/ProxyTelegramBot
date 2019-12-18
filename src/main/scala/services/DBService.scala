@@ -16,7 +16,7 @@ trait DBService[F[_]] {
   def delete(port: Int): F[Unit]
 }
 
-final class DBServiceImpl[F[_]: Concurrent: ContextShift](implicit F: Monad[F]) extends DBService[F] {
+class DBServiceImpl[F[_]: Concurrent: ContextShift](implicit F: Monad[F]) extends DBService[F] {
   val db: Aux[F, Unit] = Transactor.fromDriverManager[F](
     System.getProperties.getProperty("db.driver"),
     System.getProperties.getProperty("db.url"),

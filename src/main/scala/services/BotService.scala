@@ -12,9 +12,9 @@ trait BotService[F[_]] {
   def run(): F[Unit]
 }
 
-final class BotServiceImpl[F[_] : Concurrent : ContextShift]
+class BotServiceImpl[F[_] : Concurrent : ContextShift]
 (token: String,
- proxyService: ProxyServiceImpl[F],
+ proxyService: ProxyService[F],
  dbService: DBService[F])
   extends TelegramBot[F](token, AsyncHttpClientCatsBackend())
     with Polling[F]
@@ -54,7 +54,7 @@ final class BotServiceImpl[F[_] : Concurrent : ContextShift]
 
   onRegex("""/openport ([0-9]+) (.+?):([0-9]+)""".r) ( implicit msg => {
     case Seq(Int(localPort), targetHost, Int(targetPort)) =>
-      if (!proxyService.socks.contains(localPort)) {
+      if (!proxyService.isOpen(localPort)) {
         for {
           _ <- openPort(localPort, targetHost, targetPort)
           _ <- reply(s"Started on port $localPort - target $targetHost:$targetPort.").void

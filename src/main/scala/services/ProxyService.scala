@@ -16,10 +16,13 @@ import scala.collection.mutable
 trait ProxyService[F[_]] {
   def startProxy(port: Int, targetHost: String, targetPort: Int): F[Unit]
   def stopProxy(port: Int): F[Unit]
+  def isOpen(port: Int): Boolean
 }
 
-final class ProxyServiceImpl[F[_] : ContextShift : Concurrent]()(implicit F: Monad[F]) extends ProxyService[F] {
-  @volatile var socks: mutable.Map[Int, Deferred[F, Unit]] = mutable.Map.empty
+class ProxyServiceImpl[F[_] : ContextShift : Concurrent]()(implicit F: Monad[F]) extends ProxyService[F] {
+  @volatile private var socks: mutable.Map[Int, Deferred[F, Unit]] = mutable.Map.empty
+
+  override def isOpen(port: Int): Boolean = socks.contains(port)
 
   override def startProxy(port: Int, targetHost: String, targetPort: Int): F[Unit] = {
     val mkSocketGroup: Stream[F, SocketGroup] =
