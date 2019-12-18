@@ -7,16 +7,17 @@ import com.bot4s.telegram.api.declarative.{Commands, RegexCommands}
 import com.bot4s.telegram.cats.{Polling, TelegramBot}
 import com.softwaremill.sttp.asynchttpclient.cats.AsyncHttpClientCatsBackend
 import scala.util.Try
+import config._
 
 trait BotService[F[_]] {
   def run(): F[Unit]
 }
 
 class BotServiceImpl[F[_] : Concurrent : ContextShift]
-(token: String,
+(botConfig: BotConfig,
  proxyService: ProxyService[F],
  dbService: DBService[F])
-  extends TelegramBot[F](token, AsyncHttpClientCatsBackend())
+  extends TelegramBot[F](botConfig.token, AsyncHttpClientCatsBackend())
     with Polling[F]
     with Commands[F]
     with RegexCommands[F]

@@ -3,9 +3,8 @@ import monix.eval.{Task, TaskApp}
 import monix.execution.Scheduler
 import services._
 import db._
-import doobie.util.transactor.Transactor
 import monix.execution.schedulers.SchedulerService
-
+import config._
 import scala.concurrent.duration.SECONDS
 import scala.concurrent.duration.Duration
 
@@ -21,12 +20,12 @@ object Launcher extends TaskApp {
     for {
       _ <- Task.pure(println("Starting..."))
 
-      dbService = new DBServiceImpl[Task]
+      dbService = new DBServiceImpl[Task](new DBConfig)
       proxyService = new ProxyServiceImpl[Task]
-      botService = new BotServiceImpl[Task](System.getProperties.getProperty("proxy.bot.token"), proxyService, dbService)
+      botService = new BotServiceImpl[Task](new BotConfig, proxyService, dbService)
 
       _ <- dbService.create
-      _ <- dbService.insertProxies(Proxy(7766, "www.google.com", 80) :: Nil)
+      _ <- dbService.insertProxy(Proxy(7766, "www.google.com", 80))
 
       proxies <- dbService.getProxies
       _ = runProxies(proxyService, proxies)
